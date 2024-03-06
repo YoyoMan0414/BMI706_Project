@@ -6,6 +6,11 @@ from vega_datasets import data
 
 ### P1.2 ###
 
+st.set_page_config(
+    layout="wide",
+	initial_sidebar_state = "auto"
+)
+
 @st.cache_data
 def load_data():
     # import std data
@@ -53,6 +58,7 @@ df, pivoted_df = load_data()
 
 # title
 st.write("## STD Dashboard")
+
 #
 # replace with st.slider
 # min_year, max_year = df['Year'].min(), df['Year'].max()
@@ -78,21 +84,32 @@ subset = df[df["Year"] == year]
 #subset = subset[subset["Geography"].isin(countries)]
 
 # st.multiselect std types
-std_options = ['Chlamydia',
+# std_options = ['Chlamydia',
+#                'Congenital Syphilis',
+#                'Early Non-Primary, Non-Secondary Syphilis',
+#                'Gonorrhea',
+#                'Primary and Secondary Syphilis']
+# std = st.multiselect('STD', options=std_options, default = std_options)
+# subset_std = subset[subset["Indicator"].isin(std)]
+
+## Set up country select in sidebar
+with st.sidebar: 
+    std_options = ['Chlamydia',
                'Congenital Syphilis',
                'Early Non-Primary, Non-Secondary Syphilis',
                'Gonorrhea',
                'Primary and Secondary Syphilis']
-std = st.multiselect('STD', options=std_options, default = std_options)
-subset_std = subset[subset["Indicator"].isin(std)]
+    std = st.multiselect('STD', options=std_options, default = std_options)
+    subset_std = subset[subset["Indicator"].isin(std)]
 
-# multiselect social determinants
-sdh_options = ['Households living below the federal poverty level',
-               'Population 25 years and older w/o HS diploma',
-               'Uninsured',
-               'Vacant housing']
-sdh = st.multiselect('Social Determinants', options=sdh_options, default = sdh_options)
-subset_sdh = subset[subset["Indicator"].isin(sdh)]
+    # multiselect social determinants
+    sdh_options = ['Households living below the federal poverty level',
+                'Population 25 years and older w/o HS diploma',
+                'Uninsured',
+                'Vacant housing']
+    sdh = st.multiselect('Social Determinants of Health', options=sdh_options, default = sdh_options)
+    subset_sdh = subset[subset["Indicator"].isin(sdh)]
+
 
 # std map
 source = alt.topo_feature(data.us_10m.url, 'states')
@@ -131,8 +148,8 @@ chart_base = alt.Chart(source
     )
 # Map values
 
-num_scale = alt.Scale(domain=[std_data['Cases'].min(), std_data['Cases'].max()], scheme='oranges')
-num_color = alt.Color(field="Cases", type="quantitative", scale=num_scale)
+#num_scale = alt.Scale(domain=[std_data['Cases'].min(), std_data['Cases'].max()], scheme='oranges')
+num_color = alt.Color(field="Cases", type="quantitative", scale=alt.Scale(domain=[0, 300000], scheme='oranges'))
 std_map = chart_base.mark_geoshape().encode(
     color=num_color,
     tooltip=['Cases:Q', 'Geography:N']
@@ -142,25 +159,26 @@ std_map = chart_base.mark_geoshape().encode(
     title=f'STD Cases in U.S. {year}'
 )
 
+#map_left = background + std_map
+#st.altair_chart(map_left)
+
 # sdh table
 # sdh_table = subset_sdh[subset_sdh]
 # Create the pie chart
-pie_chart = alt.Chart(subset_sdh).mark_arc().encode(
-    theta=alt.Theta(field='Percent', type='quantitative', stack=True),
-    color=alt.Color(field='Indicator', type='nominal'),
-    tooltip=['Indicator', 'Percent']
-).transform_filter(
-    selector  # Filter the data based on the selection
-).properties(
-    width=300,
-    height=300
-)
+# pie_chart = alt.Chart(subset_sdh).mark_arc().encode(
+#     theta=alt.Theta(field='Percent', type='quantitative', stack=True),
+#     color=alt.Color(field='Indicator', type='nominal'),
+#     tooltip=['Indicator', 'Percent']
+# ).transform_filter(
+#     selector  # Filter the data based on the selection
+# ).properties(
+#     width=300,
+#     height=300
+# )
 
-map_left = background + std_map
-combined_charts = alt.hconcat(map_left, pie_chart)
-st.altair_chart(combined_charts, use_container_width=True)
-
-
+# map_left = background + std_map
+# combined_charts = alt.hconcat(map_left, pie_chart)
+# st.altair_chart(combined_charts, use_container_width=True)
 
 # sdh map
 sdh_data = subset_sdh.groupby(['Geography', 'Year', 'FIPS'])['Numerator'].sum().reset_index()
@@ -175,8 +193,8 @@ chart_base_sdh = alt.Chart(source
         from_=alt.LookupData(sdh_data, "FIPS", ['Geography','Numerator']),
     )
 
-num_scale = alt.Scale(domain=[sdh_data['Numerator'].min(), sdh_data['Numerator'].max()], scheme='oranges')
-num_color = alt.Color(field="Numerator", type="quantitative", scale=num_scale)
+#num_scale = alt.Scale(domain=[sdh_data['Numerator'].min(), sdh_data['Numerator'].max()], scheme='oranges')
+num_color = alt.Color(field="Numerator", type="quantitative", scale=alt.Scale(domain=[0, 12000000])) #, scale=num_scale)
 sdh_map = chart_base_sdh.mark_geoshape().encode(
     color=num_color,
     tooltip=['Numerator:Q', 'Geography:N']
@@ -184,8 +202,48 @@ sdh_map = chart_base_sdh.mark_geoshape().encode(
     title=f'Social Determinants Numerator in U.S. {year}'
 )
 
-map_right = background + sdh_map
-st.altair_chart(map_right, use_container_width=True)
+col1, col2 = st.columns(2)
+with col1:
+    map_left = background + std_map
+    st.altair_chart(map_left,use_container_width=True)
+with col2:
+    map_right = background + sdh_map
+    st.altair_chart(map_right,use_container_width=True)
+
+
+# Line Chart
+
+subset_std_disease = df[df["Indicator"].isin(std)]
+std_data_year_cases = subset_std_disease.groupby(['Indicator','Year'])['Cases'].sum().reset_index()
+
+line_chart = alt.Chart(std_data_year_cases).mark_line().encode(
+    x=alt.X("Year:O",axis=alt.Axis(labelAngle=0)),
+    y=alt.Y("Cases:Q"),
+    color="Indicator",
+    tooltip = ['Year','Cases', 'Indicator']
+).properties(
+    title='STD trends',
+    width=800,
+    height=500
+)
+
+#st.altair_chart(line_chart)
+
+# Table by State
+
+df_state_top10 = subset_std.groupby(['Geography'])['Cases'].sum().reset_index().sort_values(by=['Cases'], ascending = False).reset_index(drop=True)
+df_state_top10 = df_state_top10.rename(columns = {'Geography': 'State'})
+#st.dataframe(df_state_top10)
+#st.altair_chart(line_chart | df_state_top10)
+
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.altair_chart(line_chart)
+with col2:
+    st.write(f"**Cases by States in {year}**")
+    st.dataframe(df_state_top10)
+    st.write(f"{std}")
+
 
 #correlation matrix
 cor_df = pivoted_df.drop(['FIPS', 'Geography','Year'], axis = 1)
