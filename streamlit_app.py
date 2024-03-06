@@ -4,7 +4,8 @@ import streamlit as st
 from vega_datasets import data
 
 
-### P1.2 ###
+#####################################################################################################
+# SET UP
 
 st.set_page_config(
     layout="wide",
@@ -59,47 +60,22 @@ df, pivoted_df = load_data()
 # title
 st.write("## STD Dashboard")
 
-#
-# replace with st.slider
-# min_year, max_year = df['Year'].min(), df['Year'].max()
+#####################################################################################################
+# SELECTORS
+
+# st.slider of Year
 min_year, max_year = 2011, df['Year'].max()
 year = st.slider('Year', min_value=int(min_year), max_value=int(max_year))
 subset = df[df["Year"] == year]
 
-# # st.multiselect countries
-# country_options = df['Geography'].unique()
-# countries = st.multiselect('Countries', options=country_options)
-# # Create a radio button to choose between all countries or only selected
-# display_option = st.radio(
-#     "Display all countries or only selected countries?",
-#     ('All', 'Selected')
-# )
-# if display_option == 'Selected':
-#     # Filter the dataframe for selected countries
-#     subset = subset[subset["Geography"].isin(countries)]
-# else:
-#     # Use the full dataframe
-#     subset = subset
-
-#subset = subset[subset["Geography"].isin(countries)]
-
-# st.multiselect std types
-# std_options = ['Chlamydia',
-#                'Congenital Syphilis',
-#                'Early Non-Primary, Non-Secondary Syphilis',
-#                'Gonorrhea',
-#                'Primary and Secondary Syphilis']
-# std = st.multiselect('STD', options=std_options, default = std_options)
-# subset_std = subset[subset["Indicator"].isin(std)]
-
-## Set up country select in sidebar
+# std and sdh select in sidebar
 with st.sidebar: 
     std_options = ['Chlamydia',
                'Congenital Syphilis',
                'Early Non-Primary, Non-Secondary Syphilis',
                'Gonorrhea',
                'Primary and Secondary Syphilis']
-    std = st.multiselect('STD', options=std_options, default = std_options)
+    std = st.multiselect('**STD**', options=std_options, default = std_options)
     subset_std = subset[subset["Indicator"].isin(std)]
 
     # multiselect social determinants
@@ -107,9 +83,11 @@ with st.sidebar:
                 'Population 25 years and older w/o HS diploma',
                 'Uninsured',
                 'Vacant housing']
-    sdh = st.multiselect('Social Determinants of Health', options=sdh_options, default = sdh_options)
+    sdh = st.multiselect('**Social Determinants of Health**', options=sdh_options, default = sdh_options)
     subset_sdh = subset[subset["Indicator"].isin(sdh)]
 
+#####################################################################################################
+# US MAPS
 
 # std map
 source = alt.topo_feature(data.us_10m.url, 'states')
@@ -131,7 +109,6 @@ background = alt.Chart(source
 ).project(project)
 
 selector = alt.selection_single(
-    # add your code here
     on='click',
     fields=['Geography']
 )
@@ -146,8 +123,8 @@ chart_base = alt.Chart(source
         lookup="id",
         from_=alt.LookupData(std_data, "FIPS", ['Geography','Cases']),
     )
+    
 # Map values
-
 #num_scale = alt.Scale(domain=[std_data['Cases'].min(), std_data['Cases'].max()], scheme='oranges')
 num_color = alt.Color(field="Cases", type="quantitative", scale=alt.Scale(domain=[0, 300000], scheme='bluepurple'))
 std_map = chart_base.mark_geoshape().encode(
@@ -155,30 +132,7 @@ std_map = chart_base.mark_geoshape().encode(
     tooltip=['Cases:Q', 'Geography:N']
 ).transform_filter(
     selector
-    ).properties(
-    title=f'STD Cases in U.S. {year}'
-)
-
-#map_left = background + std_map
-#st.altair_chart(map_left)
-
-# sdh table
-# sdh_table = subset_sdh[subset_sdh]
-# Create the pie chart
-# pie_chart = alt.Chart(subset_sdh).mark_arc().encode(
-#     theta=alt.Theta(field='Percent', type='quantitative', stack=True),
-#     color=alt.Color(field='Indicator', type='nominal'),
-#     tooltip=['Indicator', 'Percent']
-# ).transform_filter(
-#     selector  # Filter the data based on the selection
-# ).properties(
-#     width=300,
-#     height=300
-# )
-
-# map_left = background + std_map
-# combined_charts = alt.hconcat(map_left, pie_chart)
-# st.altair_chart(combined_charts, use_container_width=True)
+    )
 
 # sdh map
 sdh_data = subset_sdh.groupby(['Geography', 'Year', 'FIPS'])['Numerator'].sum().reset_index()
@@ -194,25 +148,27 @@ chart_base_sdh = alt.Chart(source
     )
 
 #num_scale = alt.Scale(domain=[sdh_data['Numerator'].min(), sdh_data['Numerator'].max()], scheme='oranges')
-num_color = alt.Color(field="Numerator", type="quantitative", scale=alt.Scale(domain=[0, 12000000], scheme='warmgreys')) #, scale=num_scale)
+num_color = alt.Color(field="Numerator", type="quantitative", scale=alt.Scale(domain=[0, 12000000], scheme='purples')) #, scale=num_scale)
 sdh_map = chart_base_sdh.mark_geoshape().encode(
     color=num_color,
     tooltip=['Numerator:Q', 'Geography:N']
-).properties(
-    title=f'Social Determinants Numerator in U.S. {year}'
 )
 
+# map layout
 col1, col2 = st.columns(2)
 with col1:
+    st.write(f'**STD Cases in U.S. :blue[{year}]**')
     map_left = background + std_map
     st.altair_chart(map_left,use_container_width=True)
 with col2:
+    st.write(f'**Social Determinants of Health Numerator in U.S. :blue[{year}]**')
     map_right = background + sdh_map
     st.altair_chart(map_right,use_container_width=True)
 
+#####################################################################################################
+# Line Chart & Table
 
 # Line Chart
-
 subset_std_disease = df[df["Indicator"].isin(std)]
 std_data_year_cases = subset_std_disease.groupby(['Indicator','Year'])['Cases'].sum().reset_index()
 
@@ -222,30 +178,29 @@ line_chart = alt.Chart(std_data_year_cases).mark_line().encode(
     color="Indicator",
     tooltip = ['Year','Cases', 'Indicator']
 ).properties(
-    title='STD trends',
+    title='STD Cases Trends',
     width=800,
     height=500
 )
 
+# Table
+df_state = subset_std.groupby(['Geography'])['Cases'].sum().reset_index().sort_values(by=['Cases'], ascending = False).reset_index(drop=True)
+df_state = df_state.rename(columns = {'Geography': 'State'})
 
-# Table by State
-
-df_state_top10 = subset_std.groupby(['Geography'])['Cases'].sum().reset_index().sort_values(by=['Cases'], ascending = False).reset_index(drop=True)
-df_state_top10 = df_state_top10.rename(columns = {'Geography': 'State'})
-#st.dataframe(df_state_top10)
-#st.altair_chart(line_chart | df_state_top10)
-
+# layout
 col1, col2 = st.columns([2, 1])
 with col1:
     st.altair_chart(line_chart)
 with col2:
-    st.write(f"**Cases by States in {year}**")
-    st.dataframe(df_state_top10)
+    st.write(f"**STD Cases by States in :blue[{year}]**")
+    st.dataframe(df_state)
     st.caption(f"Total Cases of {std}")
 
 
-# By state
-# A state selector
+#####################################################################################################
+# State-specific Charts
+
+# state selector
 state = st.selectbox(
     'Select a State',
     pivoted_df['Geography'].unique())
@@ -259,43 +214,43 @@ subset_state = subset_state.reset_index()
 st.write(f"**Yearly Breakdown of STD Rate per 100,000 in :blue[{state}]**")
 st.bar_chart(subset_state, x='Year', height=300)
 
-# Stacked Bar Chart of Social Determinant Percent
+# Stacked Bar Chart of Social Determinant Percent (removed)
 subset_sdh_trend = df[df["Indicator"].isin(sdh)]
 subset_sdh_state = subset_sdh_trend[subset_sdh_trend['Geography'] == state]
 #subset_state2 = subset_sdh_trend[subset_sdh_trend['Geography'] == state].pivot(index=['Year'], columns='Indicator', values=['Percent'])
 #subset_state2.columns = [f'{indicator}' for val, indicator in subset_state2.columns]
 #subset_state2 = subset_state2.reset_index()
-
 # st.write(f"Yearly Breakdown of Social Determinants of Health **Percent** of Population in {state}")
 # st.bar_chart(subset_state2, x='Year', height=300)
 
+# Line Chart of Social Determinant Percent
+st.write(f"**Yearly Trend of Social Determinants of Health Population Percent in :blue[{state}]**")
 line_chart2 = alt.Chart(subset_sdh_state).mark_line().encode(
     x=alt.X("Year:O",axis=alt.Axis(labelAngle=0)),
     y=alt.Y("Percent:Q"),
     color="Indicator",
     tooltip = ['Year','Cases', 'Indicator']
 ).properties(
-    title=f"Yearly Trend of Social Determinants of Health Population Percent in :blue[{state}]",
     width=800,
     height=500
 )
-#st.altair_chart(line_chart2)
 
-# Table by State
-
+# Table
 sdh_subset = df[df["Indicator"].isin(sdh)]
 sdh_percent_state = sdh_subset[sdh_subset['Geography'] == state][['Year', 'Indicator', 'Percent']].reset_index(drop=True)
 sdh_percent_state = sdh_percent_state.rename(columns = {'Indicator': 'Determinants', 'Percent':'Population Percent'})
 
-
+# layout
 col1, col2 = st.columns([2, 1])
 with col1:
     st.altair_chart(line_chart2)
 with col2:
     st.write(f"**SDH Population Percent in :blue[{state}]**")
     st.dataframe(sdh_percent_state)
-    #st.caption(f"Total Cases of {std}")
 
+
+#####################################################################################################
+# Heatmap & Scatterplot
 
 #correlation matrix
 cor_df = pivoted_df.drop(['FIPS', 'Geography','Year'], axis = 1)
@@ -305,20 +260,21 @@ corr_matrix_long = corr_matrix.reset_index().melt('index')
 heatmap = alt.Chart(corr_matrix_long).mark_rect().encode(
     x='index:O',
     y='variable:O',
-    color=alt.Color('value:Q', scale=alt.Scale(domain=[-1, 1], scheme='redblue')),
+    color=alt.Color('value:Q', scale=alt.Scale(domain=[1, -1], scheme='pinkyellowgreen')),
     tooltip=[
         alt.Tooltip('index', title='Variable 1'),
         alt.Tooltip('variable', title='Variable 2'),
         alt.Tooltip('value', title='Correlation')
     ]
 ).properties(
-    title='Correlation Matrix Heatmap',
+    title='Correlation Heatmap',
     width=alt.Step(40),  # Controls the width of the heatmap cells
     height=alt.Step(40)  # Controls the height of the heatmap cells
 ).configure_axis(
     labelFontSize=10
 )
 
+# layout 
 col1, col2 = st.columns([1.5, 1])
 with col1:
     # Display the heatmap in Streamlit
@@ -331,13 +287,13 @@ with col2:
 
     # Generate and display scatterplot based on selections
     cor_df2 = cor_df.set_axis(std_options + sdh_options, axis=1)
+    st.write(f'**:rainbow[{var1}] vs :rainbow[{var2}]**')
     if var1 and var2:
-        scatterplot = alt.Chart(cor_df2).mark_circle(size=60).encode(
+        scatterplot = alt.Chart(cor_df2).mark_circle(size=60, color = 'pink').encode(
             x=alt.X(f'{var1}:Q', title=var1),
             y=alt.Y(f'{var2}:Q', title=var2),
             tooltip=[var1, var2]
         ).properties(
-            title=f'Scatterplot of {var1} vs {var2}',
             width=450,
             height=400
         )
