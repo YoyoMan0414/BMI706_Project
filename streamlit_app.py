@@ -1,4 +1,3 @@
-!pip install vega_datasets
 import altair as alt
 import pandas as pd
 import streamlit as st
