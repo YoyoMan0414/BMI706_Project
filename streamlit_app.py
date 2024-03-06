@@ -235,7 +235,7 @@ df_state_top10 = df_state_top10.rename(columns = {'Geography': 'State'})
 #st.dataframe(df_state_top10)
 #st.altair_chart(line_chart | df_state_top10)
 
-col1, col2 = st.columns([3, 1])
+col1, col2 = st.columns([2, 1])
 with col1:
     st.altair_chart(line_chart)
 with col2:
