@@ -288,7 +288,7 @@ sdh_percent_state = sdh_subset[sdh_subset['Geography'] == state][['Year', 'Indic
 sdh_percent_state = sdh_percent_state.rename(columns = {'Indicator': 'Determinants', 'Percent':'Population Percent'})
 
 
-col1, col2 = st.columns([3, 1])
+col1, col2 = st.columns([2, 1])
 with col1:
     st.altair_chart(line_chart2)
 with col2:
