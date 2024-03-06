@@ -149,7 +149,7 @@ chart_base = alt.Chart(source
 # Map values
 
 #num_scale = alt.Scale(domain=[std_data['Cases'].min(), std_data['Cases'].max()], scheme='oranges')
-num_color = alt.Color(field="Cases", type="quantitative", scale=alt.Scale(domain=[0, 300000], scheme='oranges'))
+num_color = alt.Color(field="Cases", type="quantitative", scale=alt.Scale(domain=[0, 300000], scheme='bluepurple'))
 std_map = chart_base.mark_geoshape().encode(
     color=num_color,
     tooltip=['Cases:Q', 'Geography:N']
@@ -194,7 +194,7 @@ chart_base_sdh = alt.Chart(source
     )
 
 #num_scale = alt.Scale(domain=[sdh_data['Numerator'].min(), sdh_data['Numerator'].max()], scheme='oranges')
-num_color = alt.Color(field="Numerator", type="quantitative", scale=alt.Scale(domain=[0, 12000000])) #, scale=num_scale)
+num_color = alt.Color(field="Numerator", type="quantitative", scale=alt.Scale(domain=[0, 12000000], scheme='warmgreys')) #, scale=num_scale)
 sdh_map = chart_base_sdh.mark_geoshape().encode(
     color=num_color,
     tooltip=['Numerator:Q', 'Geography:N']
@@ -227,7 +227,6 @@ line_chart = alt.Chart(std_data_year_cases).mark_line().encode(
     height=500
 )
 
-#st.altair_chart(line_chart)
 
 # Table by State
 
@@ -242,7 +241,60 @@ with col1:
 with col2:
     st.write(f"**Cases by States in {year}**")
     st.dataframe(df_state_top10)
-    st.write(f"{std}")
+    st.caption(f"Total Cases of {std}")
+
+
+# By state
+# A state selector
+state = st.selectbox(
+    'Select a State',
+    pivoted_df['Geography'].unique())
+
+# Stacked Bar Chart of Rate 
+subset_std_trend = df[df["Indicator"].isin(std)]
+subset_state = subset_std_trend[subset_std_trend['Geography'] == state].pivot(index=['Year'], columns='Indicator', values=['Rate per 100000'])
+subset_state.columns = [f'{indicator}' for val, indicator in subset_state.columns]
+subset_state = subset_state.reset_index()
+
+st.write(f"**Yearly Breakdown of STD Rate per 100,000 in :blue[{state}]**")
+st.bar_chart(subset_state, x='Year', height=300)
+
+# Stacked Bar Chart of Social Determinant Percent
+subset_sdh_trend = df[df["Indicator"].isin(sdh)]
+subset_sdh_state = subset_sdh_trend[subset_sdh_trend['Geography'] == state]
+#subset_state2 = subset_sdh_trend[subset_sdh_trend['Geography'] == state].pivot(index=['Year'], columns='Indicator', values=['Percent'])
+#subset_state2.columns = [f'{indicator}' for val, indicator in subset_state2.columns]
+#subset_state2 = subset_state2.reset_index()
+
+# st.write(f"Yearly Breakdown of Social Determinants of Health **Percent** of Population in {state}")
+# st.bar_chart(subset_state2, x='Year', height=300)
+
+line_chart2 = alt.Chart(subset_sdh_state).mark_line().encode(
+    x=alt.X("Year:O",axis=alt.Axis(labelAngle=0)),
+    y=alt.Y("Percent:Q"),
+    color="Indicator",
+    tooltip = ['Year','Cases', 'Indicator']
+).properties(
+    title=f"Yearly Trend of Social Determinants of Health Population Percent in :blue[{state}]",
+    width=800,
+    height=500
+)
+#st.altair_chart(line_chart2)
+
+# Table by State
+
+sdh_subset = df[df["Indicator"].isin(sdh)]
+sdh_percent_state = sdh_subset[sdh_subset['Geography'] == state][['Year', 'Indicator', 'Percent']].reset_index(drop=True)
+sdh_percent_state = sdh_percent_state.rename(columns = {'Indicator': 'Determinants', 'Percent':'Population Percent'})
+
+
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.altair_chart(line_chart2)
+with col2:
+    st.write(f"**SDH Population Percent in :blue[{state}]**")
+    st.dataframe(sdh_percent_state)
+    #st.caption(f"Total Cases of {std}")
 
 
 #correlation matrix
@@ -267,5 +319,31 @@ heatmap = alt.Chart(corr_matrix_long).mark_rect().encode(
     labelFontSize=10
 )
 
-# Display the heatmap in Streamlit
-st.altair_chart(heatmap)
+col1, col2 = st.columns([1.5, 1])
+with col1:
+    # Display the heatmap in Streamlit
+    st.altair_chart(heatmap)
+with col2:
+    var1 = st.selectbox('Select STD (by Cases) Variable:', options=std_options, index=0)
+    #var1 = st.radio('Select STD (by Cases)Variable:', options=std_options, index=0, key='var1')
+    var2 = st.selectbox('Select SDH (by Counts) Variable:', options=sdh_options, index=1)
+    #var2 = st.radio('Select SDH Variable:', options=sdh_options, index=0, key='var2')
+
+    # Generate and display scatterplot based on selections
+    cor_df2 = cor_df.set_axis(std_options + sdh_options, axis=1)
+    if var1 and var2:
+        scatterplot = alt.Chart(cor_df2).mark_circle(size=60).encode(
+            x=alt.X(f'{var1}:Q', title=var1),
+            y=alt.Y(f'{var2}:Q', title=var2),
+            tooltip=[var1, var2]
+        ).properties(
+            title=f'Scatterplot of {var1} vs {var2}',
+            width=450,
+            height=400
+        )
+
+        st.altair_chart(scatterplot)  # Display heatmap and scatterplot side by side
+    else:
+        st.altair_chart(heatmap)  
+        map_right = background + sdh_map
+        st.altair_chart(map_right,use_container_width=True)
