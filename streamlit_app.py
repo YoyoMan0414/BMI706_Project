@@ -88,7 +88,7 @@ with st.sidebar:
 
 #####################################################################################################
 # US MAPS
-
+st.write("#### Geographic Distribution of STD and Social Health Determinants in the U.S.")
 # std map
 source = alt.topo_feature(data.us_10m.url, 'states')
 std_data = subset_std.groupby(['Geography', 'Year', 'FIPS'])['Cases'].sum().reset_index()
