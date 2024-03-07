@@ -62,10 +62,10 @@ st.write("## STD Dashboard")
 
 #####################################################################################################
 # SELECTORS
-
+st.write("#### Geographic Distribution")
 # st.slider of Year
 min_year, max_year = 2011, df['Year'].max()
-year = st.slider('Year', min_value=int(min_year), max_value=int(max_year))
+year = st.slider('Year', min_value=int(min_year), max_value=int(max_year), value=2016)
 subset = df[df["Year"] == year]
 
 # std and sdh select in sidebar
@@ -88,7 +88,7 @@ with st.sidebar:
 
 #####################################################################################################
 # US MAPS
-st.write("#### Geographic Distribution of STD and Social Health Determinants in the U.S.")
+
 # std map
 source = alt.topo_feature(data.us_10m.url, 'states')
 std_data = subset_std.groupby(['Geography', 'Year', 'FIPS'])['Cases'].sum().reset_index()
@@ -167,7 +167,7 @@ with col2:
 
 #####################################################################################################
 # Line Chart & Table
-
+st.write("#### Temporal Trends Overview")
 # Line Chart
 subset_std_disease = df[df["Indicator"].isin(std)]
 std_data_year_cases = subset_std_disease.groupby(['Indicator','Year'])['Cases'].sum().reset_index()
@@ -188,18 +188,18 @@ df_state = subset_std.groupby(['Geography'])['Cases'].sum().reset_index().sort_v
 df_state = df_state.rename(columns = {'Geography': 'State'})
 
 # layout
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([3, 1])
 with col1:
-    st.altair_chart(line_chart)
+    st.altair_chart(line_chart,use_container_width=True)
 with col2:
     st.write(f"**STD Cases by States in :blue[{year}]**")
-    st.dataframe(df_state)
+    st.dataframe(df_state, use_container_width=True)
     st.caption(f"Total Cases of {std}")
 
 
 #####################################################################################################
 # State-specific Charts
-
+st.write("#### State-level Statistics")
 # state selector
 state = st.selectbox(
     'Select a State',
@@ -224,7 +224,6 @@ subset_sdh_state = subset_sdh_trend[subset_sdh_trend['Geography'] == state]
 # st.bar_chart(subset_state2, x='Year', height=300)
 
 # Line Chart of Social Determinant Percent
-st.write(f"**Yearly Trend of Social Determinants of Health Population Percent in :blue[{state}]**")
 line_chart2 = alt.Chart(subset_sdh_state).mark_line().encode(
     x=alt.X("Year:O",axis=alt.Axis(labelAngle=0)),
     y=alt.Y("Percent:Q"),
@@ -241,17 +240,18 @@ sdh_percent_state = sdh_subset[sdh_subset['Geography'] == state][['Year', 'Indic
 sdh_percent_state = sdh_percent_state.rename(columns = {'Indicator': 'Determinants', 'Percent':'Population Percent'})
 
 # layout
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([3, 1])
 with col1:
-    st.altair_chart(line_chart2)
+    st.write(f"**Yearly Trend of Social Determinants of Health Population Percent in :blue[{state}]**")
+    st.altair_chart(line_chart2,use_container_width=True)
 with col2:
     st.write(f"**SDH Population Percent in :blue[{state}]**")
-    st.dataframe(sdh_percent_state)
+    st.dataframe(sdh_percent_state,use_container_width=True)
 
 
 #####################################################################################################
 # Heatmap & Scatterplot
-
+st.write("#### Correlation Exploration")
 #correlation matrix
 cor_df = pivoted_df.drop(['FIPS', 'Geography','Year'], axis = 1)
 corr_matrix = cor_df.corr()
@@ -278,7 +278,7 @@ heatmap = alt.Chart(corr_matrix_long).mark_rect().encode(
 col1, col2 = st.columns([1.5, 1])
 with col1:
     # Display the heatmap in Streamlit
-    st.altair_chart(heatmap)
+    st.altair_chart(heatmap,use_container_width=True)
 with col2:
     var1 = st.selectbox('Select STD (by Cases) Variable:', options=std_options, index=0)
     #var1 = st.radio('Select STD (by Cases)Variable:', options=std_options, index=0, key='var1')
@@ -300,6 +300,4 @@ with col2:
 
         st.altair_chart(scatterplot)  # Display heatmap and scatterplot side by side
     else:
-        st.altair_chart(heatmap)  
-        map_right = background + sdh_map
-        st.altair_chart(map_right,use_container_width=True)
+        st.altair_chart(heatmap,use_container_width=True)  
